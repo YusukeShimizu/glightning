@@ -38,7 +38,7 @@ const (
 var lightningMethodRegistry map[string]*jrpc2.Method
 
 // The custommsg plugin hook is the receiving counterpart to the dev-sendcustommsg RPC method
-//and allows plugins to handle messages that are not handled internally.
+// and allows plugins to handle messages that are not handled internally.
 type CustomMsgReceivedEvent struct {
 	PeerId  string `json:"peer_id"`
 	Payload string `json:"payload"`
@@ -81,8 +81,9 @@ func (pc *CustomMsgReceivedEvent) Fail() *CustomMsgReceivedResponse {
 }
 
 // This hook is called whenever a peer has connected and successfully completed
-//   the cryptographic handshake. The parameters have the following structure if
-//   there is a channel with the peer:
+//
+//	the cryptographic handshake. The parameters have the following structure if
+//	there is a channel with the peer:
 type PeerConnectedEvent struct {
 	Peer PeerEvent `json:"peer"`
 	hook func(*PeerConnectedEvent) (*PeerConnectedResponse, error)
@@ -413,12 +414,21 @@ func (rc *RpcCommandEvent) ReplaceWith(m jrpc2.Method) *RpcCommandResponse {
 }
 
 func (rc *RpcCommandEvent) ReturnResult(resp RpcCommand_Return) (*RpcCommandResponse, error) {
-	result := &struct {
+	type Result struct {
 		Result RpcCommand_Return `json:"result"`
-	}{
-		Result: resp,
 	}
-	marshaled, err := json.Marshal(result)
+	res := &struct {
+		Return struct {
+			Res Result `json:"return"`
+		}
+	}{
+		Return: struct {
+			Res Result `json:"return"`
+		}{
+			Res: Result{Result: resp},
+		},
+	}
+	marshaled, err := json.Marshal(res)
 	if err != nil {
 		return nil, err
 	}
@@ -433,9 +443,15 @@ func (rc *RpcCommandEvent) ReturnError(errMsg string, errCode int) (*RpcCommandR
 		Code    int    `json:"code"`
 	}
 	result := &struct {
-		Result ErrResp `json:"error"`
+		Return struct {
+			Error ErrResp `json:"error"`
+		} `json:"return"`
 	}{
-		Result: ErrResp{errMsg, errCode},
+		Return: struct {
+			Error ErrResp `json:"error"`
+		}{
+			Error: ErrResp{errMsg, errCode},
+		},
 	}
 	marshaled, err := json.Marshal(result)
 	if err != nil {
@@ -450,10 +466,11 @@ func (rc *RpcCommandEvent) ReturnError(errMsg string, errCode int) (*RpcCommandR
 // its result determines how `lightningd` should treat that HTLC.
 //
 // Warning: `lightningd` will replay the HTLCs for which it doesn't have a final
-//   verdict during startup. This means that, if the plugin response wasn't
-//   processed before the HTLC was forwarded, failed, or resolved, then the plugin
-//   may see the same HTLC again during startup. It is therefore paramount that the
-//   plugin is idempotent if it talks to an external system.
+//
+//	verdict during startup. This means that, if the plugin response wasn't
+//	processed before the HTLC was forwarded, failed, or resolved, then the plugin
+//	may see the same HTLC again during startup. It is therefore paramount that the
+//	plugin is idempotent if it talks to an external system.
 type HtlcAcceptedEvent struct {
 	Onion Onion     `json:"onion"`
 	Htlc  HtlcOffer `json:"htlc"`
@@ -1182,7 +1199,8 @@ func (p *Plugin) Log(message string, level LogLevel) {
 }
 
 // Map for registering hooks. Not the *most* elegant but
-//   it'll do for now.
+//
+//	it'll do for now.
 type Hooks struct {
 	PeerConnected     func(*PeerConnectedEvent) (*PeerConnectedResponse, error)
 	DbWrite           func(*DbWriteEvent) (*DbWriteResponse, error)
